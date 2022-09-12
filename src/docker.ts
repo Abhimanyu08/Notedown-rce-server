@@ -1,7 +1,6 @@
 import 'dotenv/config';
-import { DockerClient } from './intefaces/DockerClient';
-import { prepareOptions } from './utils/prepareOptions';
 import { dockerFetch } from './utils/dockerOps';
+import { prepareOptions } from './utils/prepareOptions';
 
 
 export async function listContainers(): Promise<{ data?: string[], error?: string }> {
@@ -48,6 +47,11 @@ export async function createContainer({ imageName }: { imageName: string; }): Pr
 
 export async function startContainer({ containerId }: { containerId: string }): Promise<{ data?: string, error?: string }> {
     const opts = prepareOptions({ method: "POST", path: `/containers/${containerId}/start` });
+
+    return dockerFetch({ opts })
+}
+export async function killContainer({ containerId }: { containerId: string }): Promise<{ data?: string, error?: string }> {
+    const opts = prepareOptions({ method: "POST", path: `/containers/${containerId}/kill` });
 
     return dockerFetch({ opts })
 }

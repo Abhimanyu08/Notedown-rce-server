@@ -11,6 +11,9 @@ interface createExecReq {
     containerId: string,
     code: string
 }
+interface killContainerReq {
+    containerId: string
+}
 
 const langToImage = {
     python: "python:3",
@@ -40,7 +43,7 @@ const readReq = (req: IncomingMessage): Promise<string> => {
 
 async function setUpContainer(language: createContainerReq["language"], containerId: string): Promise<boolean> {
 
-    const { data, error } = await dockerFunctions.startContainer({ containerId });
+    const { error } = await dockerFunctions.startContainer({ containerId });
     if (error) return false
     const INITIAL_COMMAND = `touch ${FILENAME}.${langToExtension[language]}`
     const { error: execError } = await dockerFunctions.createAndStartExec({ containerId, command: INITIAL_COMMAND })
@@ -56,22 +59,23 @@ const prepareRes = (res: ServerResponse): ServerResponse => {
 }
 
 const checkReqIsCreateContainerReq = (reqData: any): reqData is createContainerReq => {
-    if (!reqData.hasOwnProperty("language")) return false
-    return Object.keys(reqData).length === 1
+    return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "language")
 }
-
+const checkReqIsKillContainerReq = (reqData: any): reqData is killContainerReq => {
+    return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "containerId")
+}
 const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
-    if (!reqData.hasOwnProperty("language")) return false
-    return (reqData.hasOwnProperty("language") && reqData.hasOwnProperty("code"))
+    return (Object.hasOwn(reqData, "containerId") && Object.hasOwn(reqData, "language") && Object.hasOwn(reqData, "code"))
 }
 
 const listener: RequestListener = async (req, res) => {
+    console.log(req.method)
     if (req.method === "OPTIONS") {
         res.writeHead(204, "", {
-            "Access-Control-Allow-Origin": req.headers.origin,
+            "Access-Control-Allow-Origin": "http://localhost:3000",
             "Vary": "Origin",
             "Access-Control-Allow-Headers": "Content-Type",
-            "Access-Control-Allow-Methods": ["POST"]
+            "Access-Control-Allow-Methods": ["POST", "DELETE"]
         })
         res.end()
         return;
@@ -79,8 +83,14 @@ const listener: RequestListener = async (req, res) => {
 
     const reqData = JSON.parse(await readReq(req));
     console.log(reqData);
-    if (!checkReqIsCreateContainerReq(reqData) && !checkReqIsCreateExecReq(reqData)) {
+
+    if (!checkReqIsCreateContainerReq(reqData) && !checkReqIsCreateExecReq(reqData) && !checkReqIsKillContainerReq(reqData)) {
         prepareRes(res).writeHead(400, "Bad request")
+        return
+    }
+    if (req.method === "DELETE" && checkReqIsKillContainerReq(reqData)) {
+        dockerFunctions.killContainer({ containerId: reqData.containerId });
+        res.writeHead(200)
         return
     }
 
@@ -110,7 +120,7 @@ const listener: RequestListener = async (req, res) => {
         return
     }
 
-    let { containerId, code, language } = reqData
+    let { containerId, code, language } = reqData as createExecReq
     const command = prepareCommand(code, language);
 
     const output = await dockerFunctions.createAndStartExec({ containerId, command });
@@ -148,7 +158,7 @@ function prepareCommand(code: string, language: createExecReq["language"]): stri
 }
 
 const server = createServer(listener)
-server.listen(8080, () => { console.log("server listening on 8080") });
+server.listen(5000, () => { console.log("server listening on 5000") });
 
 // if (previousCode) {
     //     previousCode = previousCode.trim();
