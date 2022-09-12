@@ -55,7 +55,7 @@ async function setUpContainer(language: createContainerReq["language"], containe
 }
 
 const prepareRes = (res: ServerResponse): ServerResponse => {
-    return res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000")
+    return res.setHeader("Access-Control-Allow-Origin", process.env.ORIGIN_SERVER as string)
 }
 
 const checkReqIsCreateContainerReq = (reqData: any): reqData is createContainerReq => {
@@ -72,7 +72,7 @@ const listener: RequestListener = async (req, res) => {
     console.log(req.method)
     if (req.method === "OPTIONS") {
         res.writeHead(204, "", {
-            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Origin": process.env.ORIGIN_SERVER,
             "Vary": "Origin",
             "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Allow-Methods": ["POST", "DELETE"]
