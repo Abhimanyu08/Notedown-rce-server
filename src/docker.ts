@@ -4,10 +4,22 @@ import { prepareOptions } from './utils/prepareOptions';
 import { dockerFetch } from './utils/dockerOps';
 
 
-export async function listContainers() {
+export async function listContainers(): Promise<{ data?: string[], error?: string }> {
     const opts = prepareOptions({ method: "GET", path: "/containers/json" });
-    return dockerFetch({ opts });
+    console.log(opts);
+    const { data, error } = await dockerFetch({ opts });
+    if (error) {
+        return { error }
+    }
+    if (data) {
+        const containerArray = JSON.parse(data) as string[];
+        return { data: containerArray }
+    }
+    return {
+        error: "Unknown error"
+    }
 }
+
 
 export async function createContainer({ imageName }: { imageName: string; }): Promise<{ data?: { containerId: string; }; error?: string; }> {
     const opts = prepareOptions({ method: "POST", path: "/containers/create", headers: { "Content-Type": "application/json" } });
@@ -61,6 +73,7 @@ export async function createExec({ containerId, command }: { containerId: string
     const { Id } = JSON.parse(createExecData);
     return { data: { execId: Id } }
 }
+
 
 export async function startExec({ execId }: { execId: string }):
     Promise<{ data?: { output: string }, error?: string }> {

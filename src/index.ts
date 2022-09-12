@@ -1,4 +1,4 @@
-import { createServer, IncomingMessage, RequestListener } from "http";
+import { createServer, IncomingMessage, RequestListener, ServerResponse } from "http";
 import * as dockerFunctions from "./docker";
 
 const FILENAME = "file";
@@ -51,11 +51,24 @@ async function setUpContainer(language: createContainerReq["language"], containe
     return true
 }
 
-const listener: RequestListener = async (req, res) => {
+const prepareRes = (res: ServerResponse): ServerResponse => {
+    return res.setHeader("Access-Control-Allow-Origin", "http://localhost:3000")
+}
 
+const checkReqIsCreateContainerReq = (reqData: any): reqData is createContainerReq => {
+    if (!reqData.hasOwnProperty("language")) return false
+    return Object.keys(reqData).length === 1
+}
+
+const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
+    if (!reqData.hasOwnProperty("language")) return false
+    return (reqData.hasOwnProperty("language") && reqData.hasOwnProperty("code"))
+}
+
+const listener: RequestListener = async (req, res) => {
     if (req.method === "OPTIONS") {
         res.writeHead(204, "", {
-            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Origin": req.headers.origin,
             "Vary": "Origin",
             "Access-Control-Allow-Headers": "Content-Type",
             "Access-Control-Allow-Methods": ["POST"]
@@ -64,47 +77,52 @@ const listener: RequestListener = async (req, res) => {
         return;
     }
 
-    const reqData: createContainerReq | createExecReq = JSON.parse(await readReq(req));
+    const reqData = JSON.parse(await readReq(req));
+    console.log(reqData);
+    if (!checkReqIsCreateContainerReq(reqData) && !checkReqIsCreateExecReq(reqData)) {
+        prepareRes(res).writeHead(400, "Bad request")
+        return
+    }
 
-    if (!("containerId" in reqData)) {
-        //the request is to create and set up the container, not to run code
+    if (checkReqIsCreateContainerReq(reqData)) {
+        //the request is to create and set up the container
         const { language } = reqData
         const imageName = langToImage[language];
         const createContainerResp = await dockerFunctions.createContainer({ imageName });
+
         if (createContainerResp.error) {
-            res.writeHead(500, createContainerResp.error).end()
+
+            prepareRes(res).writeHead(500, createContainerResp.error)
             return
         }
         if (!createContainerResp.data) {
-            res.writeHead(500, "Couldn't create container").end()
+            prepareRes(res).writeHead(500, "Couldn't create container")
             return
         }
 
         const { containerId } = createContainerResp.data
         const containerSetupSuccess = await setUpContainer(language, containerId);
         if (!containerSetupSuccess) {
-            res.writeHead(500, "Couldn't setup container").end()
+            prepareRes(res).writeHead(500, "Couldn't setup container")
             return
         }
-        res.writeHead(201, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "http://localhost:3000" });
-        res.end(JSON.stringify({ containerId }))
+        prepareRes(res).writeHead(201, "", { "Content-Type": "application/json" }).end(JSON.stringify({ containerId }))
         return
     }
 
     let { containerId, code, language } = reqData
     const command = prepareCommand(code, language);
-    console.log(command)
+
     const output = await dockerFunctions.createAndStartExec({ containerId, command });
     if (output.error) {
-        res.writeHead(500, output.error).end();
+        prepareRes(res).writeHead(500, output.error)
         return
     }
     if (!output.data) {
-        res.writeHead(500, "no data").end();
+        prepareRes(res).writeHead(500, "no data")
         return
     }
-    res.writeHead(201, "success", { "Content-Type": "application/json", "Access-Control-Allow-Origin": "http://localhost:3000" });
-    res.end(JSON.stringify(output.data));
+    prepareRes(res).writeHead(201, "", { "Content-Type": "application/json" }).end(JSON.stringify(output.data))
 }
 
 function prepareCommand(code: string, language: createExecReq["language"]): string {
@@ -115,8 +133,7 @@ function prepareCommand(code: string, language: createExecReq["language"]): stri
     let startCommand = ''
     let filename = FILENAME
     if (fileMatch) {
-        console.log(lines)
-        console.log(fileMatch)
+
         startCommand = `touch ${fileMatch.at(1)};`
         filename = fileMatch.at(1)!;
     }
@@ -131,7 +148,7 @@ function prepareCommand(code: string, language: createExecReq["language"]): stri
 }
 
 const server = createServer(listener)
-server.listen(5000, () => { console.log("server listening on 5000") });
+server.listen(8080, () => { console.log("server listening on 8080") });
 
 // if (previousCode) {
     //     previousCode = previousCode.trim();
@@ -148,3 +165,4 @@ server.listen(5000, () => { console.log("server listening on 5000") });
     // }
     // const execId = execDetails.Id;
     // const output = await dockerClient.START_EXEC(execId)
+

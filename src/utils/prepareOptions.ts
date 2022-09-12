@@ -13,8 +13,8 @@ export function prepareOptions({ method, path, headers, queryOptions }: prepareO
         path = createReqWithSearchParams(path, queryOptions)
     }
     return {
-        hostname: process.env.DOCKER_HOSTNAME,
-        port: process.env.DOCKER_PORT,
+        hostname: '127.0.0.1',
+        port: 2375,
         method,
         path,
         ...(headers && {

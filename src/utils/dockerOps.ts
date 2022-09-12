@@ -16,6 +16,7 @@ export function dockerFetch({ opts, body }: dockerFetchArgs): dockerFetchResult 
                 resData += chunk.toString('utf-8');
             });
             res.on("error", (err) => {
+		console.log(req.host)
                 resolve({ error: err.message })
             });
             res.on("end", () => {
