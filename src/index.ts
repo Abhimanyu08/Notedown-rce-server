@@ -54,9 +54,6 @@ async function setUpContainer(language: createContainerReq["language"], containe
     return true
 }
 
-const prepareRes = (res: ServerResponse): ServerResponse => {
-    return res.setHeader("Access-Control-Allow-Origin", process.env.ORIGIN_SERVER as string)
-}
 
 const checkReqIsCreateContainerReq = (reqData: any): reqData is createContainerReq => {
     return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "language")
@@ -70,26 +67,12 @@ const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
 
 const listener: RequestListener = async (req, res) => {
 
-    console.log(req.headers);
     if (req.headers["user-agent"] !== process.env.USER_AGENT) {
         res.writeHead(401, "Bad request").end()
         return
     }
 
-    // if (req.method === "OPTIONS") {
-    //     res.writeHead(204, "", {
-    //         "Access-Control-Allow-Origin": process.env.ORIGIN_SERVER,
-    //         "Vary": "Origin",
-    //         "Access-Control-Allow-Headers": ["Content-Type", "Authorization"],
-    //         "Access-Control-Allow-Methods": ["POST", "DELETE"]
-    //     })
-    //     res.end()
-    //     return;
-    // }
-
-    const reqBody = await readReq(req)
-    console.log(reqBody)
-    const reqData = JSON.parse(reqBody);
+    const reqData = JSON.parse(await readReq(req));
 
 
     if (!checkReqIsCreateContainerReq(reqData) && !checkReqIsCreateExecReq(reqData) && !checkReqIsKillContainerReq(reqData)) {
