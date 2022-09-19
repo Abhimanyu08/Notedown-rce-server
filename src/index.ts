@@ -70,12 +70,7 @@ const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
 
 const listener: RequestListener = async (req, res) => {
 
-    if (req.headers.origin !== process.env.ORIGIN_SERVER) {
-        console.log(req.headers.origin)
-        res.writeHead(401, "Not authorized to create a container").end()
-        return
-    }
-
+    console.log(req.headers);
 
     if (req.method === "OPTIONS") {
         res.writeHead(204, "", {
