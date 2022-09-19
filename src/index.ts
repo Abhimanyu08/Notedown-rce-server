@@ -9,7 +9,7 @@ interface createContainerReq {
 interface createExecReq {
     language: "python" | "javascript"
     containerId: string,
-    code: string
+    code: string,
 }
 interface killContainerReq {
     containerId: string
@@ -69,28 +69,38 @@ const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
 }
 
 const listener: RequestListener = async (req, res) => {
-    console.log(req.method)
+
+    if (req.headers.origin !== process.env.ORIGIN_SERVER) {
+        console.log(req.headers.origin)
+        res.writeHead(401, "Not authorized to create a container").end()
+        return
+    }
+
+
     if (req.method === "OPTIONS") {
         res.writeHead(204, "", {
             "Access-Control-Allow-Origin": process.env.ORIGIN_SERVER,
             "Vary": "Origin",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": ["Content-Type", "Authorization"],
             "Access-Control-Allow-Methods": ["POST", "DELETE"]
         })
         res.end()
         return;
     }
 
-    const reqData = JSON.parse(await readReq(req));
-    console.log(reqData);
+    const reqBody = await readReq(req)
+    console.log(reqBody)
+    const reqData = JSON.parse(reqBody);
+
 
     if (!checkReqIsCreateContainerReq(reqData) && !checkReqIsCreateExecReq(reqData) && !checkReqIsKillContainerReq(reqData)) {
-        prepareRes(res).writeHead(400, "Bad request")
+        prepareRes(res).writeHead(400, "Bad request").end()
         return
     }
+
     if (req.method === "DELETE" && checkReqIsKillContainerReq(reqData)) {
         dockerFunctions.killContainer({ containerId: reqData.containerId });
-        res.writeHead(200)
+        res.writeHead(200).end()
         return
     }
 
@@ -102,18 +112,18 @@ const listener: RequestListener = async (req, res) => {
 
         if (createContainerResp.error) {
 
-            prepareRes(res).writeHead(500, createContainerResp.error)
+            prepareRes(res).writeHead(500, createContainerResp.error).end()
             return
         }
         if (!createContainerResp.data) {
-            prepareRes(res).writeHead(500, "Couldn't create container")
+            prepareRes(res).writeHead(500, "Couldn't create container").end()
             return
         }
 
         const { containerId } = createContainerResp.data
         const containerSetupSuccess = await setUpContainer(language, containerId);
         if (!containerSetupSuccess) {
-            prepareRes(res).writeHead(500, "Couldn't setup container")
+            prepareRes(res).writeHead(500, "Couldn't setup container").end()
             return
         }
         prepareRes(res).writeHead(201, "", { "Content-Type": "application/json" }).end(JSON.stringify({ containerId }))
@@ -125,11 +135,11 @@ const listener: RequestListener = async (req, res) => {
 
     const output = await dockerFunctions.createAndStartExec({ containerId, command });
     if (output.error) {
-        prepareRes(res).writeHead(500, output.error)
+        prepareRes(res).writeHead(500, output.error).end()
         return
     }
     if (!output.data) {
-        prepareRes(res).writeHead(500, "no data")
+        prepareRes(res).writeHead(500, "no data").end()
         return
     }
     prepareRes(res).writeHead(201, "", { "Content-Type": "application/json" }).end(JSON.stringify(output.data))
@@ -158,7 +168,7 @@ function prepareCommand(code: string, language: createExecReq["language"]): stri
 }
 
 const server = createServer(listener)
-server.listen(5000, () => { console.log("server listening on 5000") });
+server.listen(process.env.PORT, () => { console.log(`server listening on ${process.env.PORT}`) });
 
 // if (previousCode) {
     //     previousCode = previousCode.trim();
