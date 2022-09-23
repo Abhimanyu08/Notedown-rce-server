@@ -136,7 +136,7 @@ function prepareCommand(code: string, language: createExecReq["language"]): stri
     let filename = FILENAME
     if (fileMatch) {
 
-        startCommand = `touch ${fileMatch.at(1)};`
+        startCommand = `touch ${fileMatch.at(1)}.${langToExtension[language]};`
         filename = fileMatch.at(1)!;
     }
 
