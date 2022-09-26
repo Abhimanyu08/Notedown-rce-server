@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import { dockerFetch } from './utils/dockerOps';
 import { prepareOptions } from './utils/prepareOptions';
+import { getCreateContainerReqBody } from './utils/getReqBody';
+import { allowedLanguages } from './intefaces/allowedLanguages';
+import { langToImage } from './utils/constants';
 
 
 export async function listContainers(): Promise<{ data?: string[], error?: string }> {
@@ -20,12 +23,9 @@ export async function listContainers(): Promise<{ data?: string[], error?: strin
 }
 
 
-export async function createContainer({ imageName }: { imageName: string; }): Promise<{ data?: { containerId: string; }; error?: string; }> {
+export async function createContainer({ language }: { language: allowedLanguages; }): Promise<{ data?: { containerId: string; }; error?: string; }> {
     const opts = prepareOptions({ method: "POST", path: "/containers/create", headers: { "Content-Type": "application/json" } });
-    let body = {
-        "Image": imageName,
-        "Tty": true,
-    };
+    let body = getCreateContainerReqBody(language)
     let createContainerResp = await dockerFetch({ opts, body });
     if (!createContainerResp.error && createContainerResp.data) {
         const { data: dataString } = createContainerResp;
@@ -34,13 +34,14 @@ export async function createContainer({ imageName }: { imageName: string; }): Pr
     }
 
     if (createContainerResp.dockerStatusCode === 404) {
+        const imageName = langToImage[language]
         //error code 404 means there is no image named imageName. Therefore, we need to try pulling the image and creating the container once more
         const pullImageResp = await pullImage({ imageName });
         if (pullImageResp.error) {
             return { error: pullImageResp.error };
         }
 
-        return createContainer({ imageName });
+        return createContainer({ language });
     }
     return { error: createContainerResp.error }
 }
@@ -65,7 +66,8 @@ export async function createExec({ containerId, command }: { containerId: string
         "AttachStdout": true,
         "AttachStderr": true,
         "Tty": true,
-        "Cmd": ["sh", "-c", command]
+        "Cmd": ["sh", "-c", command],
+        "WorkingDir": "/app"
     };
     const { data: createExecData, error } = await dockerFetch({ opts, body });
     if (error) {

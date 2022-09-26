@@ -1,13 +1,14 @@
 import { createServer, IncomingMessage, RequestListener, ServerResponse } from "http";
 import * as dockerFunctions from "./docker";
-
-const FILENAME = "file";
+import { allowedLanguages } from "./intefaces/allowedLanguages";
+import { FILENAME, langToExecute, langToExtension } from "./utils/constants";
+import { getIntialCommand, getRunCodeFileCommand } from "./utils/langToCommands"
 
 interface createContainerReq {
-    language: "python" | "javascript"
+    language: allowedLanguages
 }
 interface createExecReq {
-    language: "python" | "javascript"
+    language: allowedLanguages
     containerId: string,
     code: string,
 }
@@ -15,20 +16,7 @@ interface killContainerReq {
     containerId: string
 }
 
-const langToImage = {
-    python: "python:3",
-    javascript: "node:18-alpine"
-} as const
 
-const langToExtension = {
-    python: "py",
-    javascript: "js"
-} as const
-
-const langToExecute = {
-    python: "python",
-    javascript: "node"
-} as const
 
 const readReq = (req: IncomingMessage): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -41,11 +29,15 @@ const readReq = (req: IncomingMessage): Promise<string> => {
 
 
 
-async function setUpContainer(language: createContainerReq["language"], containerId: string): Promise<boolean> {
+async function setUpContainer(language: allowedLanguages, containerId: string): Promise<boolean> {
 
     const { error } = await dockerFunctions.startContainer({ containerId });
-    if (error) return false
-    const INITIAL_COMMAND = `touch ${FILENAME}.${langToExtension[language]}`
+    if (error) {
+        console.log(error)
+        return false
+    }
+    const INITIAL_COMMAND = getIntialCommand(language);
+
     const { error: execError } = await dockerFunctions.createAndStartExec({ containerId, command: INITIAL_COMMAND })
     if (execError) {
         console.log(execError);
@@ -55,19 +47,37 @@ async function setUpContainer(language: createContainerReq["language"], containe
 }
 
 
+const checkLanguageIsAllowed = (language: string): language is allowedLanguages => {
+    return language === "python" || language === "javascript" || language === "rust"
+}
 const checkReqIsCreateContainerReq = (reqData: any): reqData is createContainerReq => {
-    return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "language")
+    return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "language") && checkLanguageIsAllowed(reqData["language"])
 }
 const checkReqIsKillContainerReq = (reqData: any): reqData is killContainerReq => {
     return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "containerId")
 }
 const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
-    return (Object.hasOwn(reqData, "containerId") && Object.hasOwn(reqData, "language") && Object.hasOwn(reqData, "code"))
+    return Object.hasOwn(reqData, "containerId") && Object.hasOwn(reqData, "language") && Object.hasOwn(reqData, "code") && checkLanguageIsAllowed(reqData["language"])
 }
 
+const prepareRes = (req: IncomingMessage, res: ServerResponse): ServerResponse => {
+    if (req.headers.origin === "http://localhost:3000") return res.setHeader("Access-Control-Allow-Origin", req.headers.origin)
+    return res
+}
 const listener: RequestListener = async (req, res) => {
 
-    if (req.headers["user-agent"] !== process.env.USER_AGENT) {
+    if (req.method === "OPTIONS") {
+        res.writeHead(204, "", {
+            "Access-Control-Allow-Origin": req.headers.origin,
+            "Vary": "Origin",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Methods": ["POST", "DELETE"]
+        })
+        res.end()
+        return;
+    }
+
+    if (req.headers.origin !== "http://localhost:3000" && req.headers["user-agent"] !== process.env.USER_AGENT) {
         res.writeHead(401, "Bad request").end()
         return
     }
@@ -76,55 +86,57 @@ const listener: RequestListener = async (req, res) => {
 
 
     if (!checkReqIsCreateContainerReq(reqData) && !checkReqIsCreateExecReq(reqData) && !checkReqIsKillContainerReq(reqData)) {
-        res.writeHead(400, "Bad request").end()
+        prepareRes(req, res).writeHead(400, "Bad request").end()
         return
     }
 
     if (req.method === "DELETE" && checkReqIsKillContainerReq(reqData)) {
         dockerFunctions.killContainer({ containerId: reqData.containerId });
-        res.writeHead(200).end()
+        prepareRes(req, res).writeHead(200).end()
         return
     }
 
     if (checkReqIsCreateContainerReq(reqData)) {
         //the request is to create and set up the container
         const { language } = reqData
-        const imageName = langToImage[language];
-        const createContainerResp = await dockerFunctions.createContainer({ imageName });
+
+
+        const createContainerResp = await dockerFunctions.createContainer({ language });
 
         if (createContainerResp.error) {
 
-            res.writeHead(500, createContainerResp.error).end()
+            prepareRes(req, res).writeHead(500, createContainerResp.error).end()
             return
         }
         if (!createContainerResp.data) {
-            res.writeHead(500, "Couldn't create container").end()
+            prepareRes(req, res).writeHead(500, "Couldn't create container").end()
             return
         }
 
         const { containerId } = createContainerResp.data
         const containerSetupSuccess = await setUpContainer(language, containerId);
         if (!containerSetupSuccess) {
-            res.writeHead(500, "Couldn't setup container").end()
+            prepareRes(req, res).writeHead(500, "Couldn't setup container").end()
             return
         }
-        res.writeHead(201, "", { "Content-Type": "application/json" }).end(JSON.stringify({ containerId }))
+        prepareRes(req, res).writeHead(201, "", { "Content-Type": "application/json" }).end(JSON.stringify({ containerId }))
         return
     }
 
     let { containerId, code, language } = reqData as createExecReq
     const command = prepareCommand(code, language);
+    console.log(command)
 
     const output = await dockerFunctions.createAndStartExec({ containerId, command });
     if (output.error) {
-        res.writeHead(500, output.error).end()
+        prepareRes(req, res).writeHead(500, output.error).end()
         return
     }
     if (!output.data) {
-        res.writeHead(500, "no data").end()
+        prepareRes(req, res).writeHead(500, "no data").end()
         return
     }
-    res.writeHead(201, "", { "Content-Type": "application/json" }).end(JSON.stringify(output.data))
+    prepareRes(req, res).writeHead(201, "", { "Content-Type": "application/json" }).end(JSON.stringify(output.data))
 }
 
 function prepareCommand(code: string, language: createExecReq["language"]): string {
@@ -132,18 +144,17 @@ function prepareCommand(code: string, language: createExecReq["language"]): stri
     code = code.replaceAll(/'(.*?)'/g, "\"$1\"")
     let lines = code.split('\n')
     const fileMatch = lines[0].match(/file-(.+)/);
-    let startCommand = ''
-    let filename = FILENAME
+    let startCommand = language !== "rust" ? "" : "cd workdir;"
+    let filename = language !== "rust" ? FILENAME : "main";
     if (fileMatch) {
 
-        startCommand = `touch ${fileMatch.at(1)}.${langToExtension[language]};`
+        startCommand = `touch src/${fileMatch.at(1)}.${langToExtension[language]};`
         filename = fileMatch.at(1)!;
     }
 
-    const file = `${filename}.${langToExtension[language]}` // for eg. file.py
-    const languageExecCommand = langToExecute[language]
+    const file = `src/${filename}.${langToExtension[language]}` // for eg. file.py
     const writeCodeToFileCommand = `echo '${code}' > ${file};`
-    const runCodeFileCommand = languageExecCommand + " " + file + ";"
+    const runCodeFileCommand = getRunCodeFileCommand(language, file)
     // const emptyFileCommand = `> ${file}`
     let command = startCommand + writeCodeToFileCommand + runCodeFileCommand;
     return command
