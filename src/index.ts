@@ -8,7 +8,7 @@ interface createContainerReq {
     language: allowedLanguages
 }
 interface createExecReq {
-    language: allowedLanguages | "sh"
+    language: allowedLanguages
     containerId: string,
     code: string,
 }
@@ -126,7 +126,6 @@ const listener: RequestListener = async (req, res) => {
 
     let { containerId, code, language } = reqData as createExecReq
     const command = prepareCommand(code, language);
-    console.log(command)
     const output = await dockerFunctions.createAndStartExec({ containerId, command });
     if (output.error) {
         prepareRes(req, res).writeHead(500, output.error).end()
@@ -143,7 +142,6 @@ function prepareCommand(code: string, language: createExecReq["language"]): stri
     code = code.trim();
     code = code.replaceAll(/'(.*?)'/g, "\"$1\"")
 
-    if (language === "sh") return code
     let lines = code.split('\n')
     const shellMatch = lines[0].match(/sh-(.+)/)
     if (shellMatch) {
