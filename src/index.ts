@@ -58,7 +58,7 @@ const checkReqIsKillContainerReq = (reqData: any): reqData is killContainerReq =
 }
 const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
     return Object.hasOwn(reqData, "containerId") && Object.hasOwn(reqData, "language") && Object.hasOwn(reqData, "code") &&
-        (checkLanguageIsAllowed(reqData["language"]) || reqData["language"] === "sh")
+        checkLanguageIsAllowed(reqData["language"])
 }
 
 const prepareRes = (req: IncomingMessage, res: ServerResponse): ServerResponse => {
