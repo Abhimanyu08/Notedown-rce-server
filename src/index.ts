@@ -8,7 +8,7 @@ interface createContainerReq {
     language: allowedLanguages
 }
 interface createExecReq {
-    language: allowedLanguages
+    language: allowedLanguages | "sh"
     containerId: string,
     code: string,
 }
@@ -57,7 +57,8 @@ const checkReqIsKillContainerReq = (reqData: any): reqData is killContainerReq =
     return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "containerId")
 }
 const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
-    return Object.hasOwn(reqData, "containerId") && Object.hasOwn(reqData, "language") && Object.hasOwn(reqData, "code") && checkLanguageIsAllowed(reqData["language"])
+    return Object.hasOwn(reqData, "containerId") && Object.hasOwn(reqData, "language") && Object.hasOwn(reqData, "code") &&
+        (checkLanguageIsAllowed(reqData["language"]) || reqData["language"] === "sh")
 }
 
 const prepareRes = (req: IncomingMessage, res: ServerResponse): ServerResponse => {
@@ -126,7 +127,6 @@ const listener: RequestListener = async (req, res) => {
     let { containerId, code, language } = reqData as createExecReq
     const command = prepareCommand(code, language);
     console.log(command)
-
     const output = await dockerFunctions.createAndStartExec({ containerId, command });
     if (output.error) {
         prepareRes(req, res).writeHead(500, output.error).end()
@@ -142,7 +142,13 @@ const listener: RequestListener = async (req, res) => {
 function prepareCommand(code: string, language: createExecReq["language"]): string {
     code = code.trim();
     code = code.replaceAll(/'(.*?)'/g, "\"$1\"")
+
+    if (language === "sh") return code
     let lines = code.split('\n')
+    const shellMatch = lines[0].match(/sh-(.+)/)
+    if (shellMatch) {
+        return shellMatch.at(1)?.trim() || ""
+    }
     const fileMatch = lines[0].match(/file-(.+)/);
     let startCommand = language !== "rust" ? "" : "cd workdir;"
     let filename = language !== "rust" ? FILENAME : "main";

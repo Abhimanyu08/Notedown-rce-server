@@ -1,1 +1,1 @@
-export type allowedLanguages = "python" | "javascript" | "rust"
+export type allowedLanguages = "python" | "javascript" | "rust" 
