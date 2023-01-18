@@ -8,9 +8,11 @@ interface createContainerReq {
     language: allowedLanguages
 }
 interface createExecReq {
-    language: allowedLanguages
+    language: allowedLanguages | "shell"
     containerId: string,
     code: string,
+    fileName?: string,
+    run?: boolean,
 }
 interface killContainerReq {
     containerId: string
@@ -58,7 +60,7 @@ const checkReqIsKillContainerReq = (reqData: any): reqData is killContainerReq =
 }
 const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
     return Object.hasOwn(reqData, "containerId") && Object.hasOwn(reqData, "language") && Object.hasOwn(reqData, "code") &&
-        checkLanguageIsAllowed(reqData["language"])
+        (checkLanguageIsAllowed(reqData["language"]) || reqData["language"] === "shell")
 }
 
 const prepareRes = (req: IncomingMessage, res: ServerResponse): ServerResponse => {
@@ -124,8 +126,8 @@ const listener: RequestListener = async (req, res) => {
         return
     }
 
-    let { containerId, code, language } = reqData as createExecReq
-    const command = prepareCommand(code, language);
+    let { containerId, code, language, run, fileName } = reqData as createExecReq
+    const command = prepareCommand(language, code, fileName || FILENAME, typeof run === "boolean" ? run : false);
     const output = await dockerFunctions.createAndStartExec({ containerId, command });
     if (output.error) {
         prepareRes(req, res).writeHead(500, output.error).end()
@@ -138,48 +140,39 @@ const listener: RequestListener = async (req, res) => {
     prepareRes(req, res).writeHead(201, "", { "Content-Type": "application/json" }).end(JSON.stringify(output.data))
 }
 
-function prepareCommand(code: string, language: createExecReq["language"]): string {
+function prepareCommand(language: createExecReq["language"], code: string, fileName: string, run: boolean): string {
     code = code.trim();
     code = code.replaceAll(/'(.*?)'/g, "\"$1\"")
 
-    let lines = code.split('\n')
-    const shellMatch = lines[0].match(/sh-(.+)/)
-    if (shellMatch) {
-        return shellMatch.at(1)?.trim() || ""
+    if (language === "shell") {
+        return code
     }
-    const fileMatch = lines[0].match(/file-(.+)/);
-    let startCommand = language !== "rust" ? "" : "cd workdir;"
-    let filename = language !== "rust" ? FILENAME : "main";
-    if (fileMatch) {
+    let fileToWriteTo: string;
 
-        startCommand = `touch src/${fileMatch.at(1)}.${langToExtension[language]};`
-        filename = fileMatch.at(1)!;
+    //if filename is say package.json, don't modify it, if it's main change it to main.js
+    if (fileName.split('.').length === 2) {
+        fileToWriteTo = fileName
+    } else {
+        fileToWriteTo = fileName + langToExtension[language]
     }
 
-    const file = `src/${filename}.${langToExtension[language]}` // for eg. file.py
+
+    const file = language !== "rust" ? fileToWriteTo : 'src/' + fileToWriteTo// for eg. file.py
     const writeCodeToFileCommand = `echo '${code}' > ${file};`
-    const runCodeFileCommand = getRunCodeFileCommand(language, file)
+
+    let runCodeFileCommand = ""
+
+    if (run) {
+        runCodeFileCommand = getRunCodeFileCommand(language, file)
+    }
     // const emptyFileCommand = `> ${file}`
-    let command = startCommand + writeCodeToFileCommand + runCodeFileCommand;
+    let command = writeCodeToFileCommand + runCodeFileCommand;
+    if (language === "rust") {
+        command = 'cd workdir;' + command
+    }
     return command
 }
 
 const server = createServer(listener)
 server.listen(process.env.PORT, () => { console.log(`server listening on ${process.env.PORT}`) });
-
-// if (previousCode) {
-    //     previousCode = previousCode.trim();
-    //     previousCode = previousCode.replace(/\n/, "\\n");
-    //     code = code.replace(/\n/, "\\n");
-    //     command = `sed -i 's/^${previousCode}(.|\\n|\\r)*/${code}/' ${FILENAME}.${langToExtension[language]}; ${langToExecute[language]} ${FILENAME}.${langToExtension[language]}`;
-    //     console.log(command);
-    // }
-    // const execDetails = await dockerClient.CREATE_EXEC(containerId, command)
-    // if ("message" in execDetails) {
-    //     res.writeHead(500, execDetails.message);
-    //     res.end();
-    //     return
-    // }
-    // const execId = execDetails.Id;
-    // const output = await dockerClient.START_EXEC(execId)
 

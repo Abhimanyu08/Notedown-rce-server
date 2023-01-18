@@ -5,9 +5,9 @@ export const langToImage = {
 } as const
 
 export const langToExtension = {
-    python: "py",
-    javascript: "js",
-    rust: "rs"
+    python: ".py",
+    javascript: ".js",
+    rust: ".rs"
 } as const
 
 export const langToExecute = {
@@ -16,4 +16,4 @@ export const langToExecute = {
     rust: "cargo"
 } as const
 
-export const FILENAME = "file";
+export const FILENAME = "main";

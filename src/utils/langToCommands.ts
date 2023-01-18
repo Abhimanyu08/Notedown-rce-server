@@ -4,10 +4,12 @@ import { FILENAME } from "./constants";
 export function getIntialCommand(language: allowedLanguages) {
     switch (language) {
         case "python":
-            return `mkdir src;touch src/${FILENAME}.py`
+            // return `mkdir src;touch src/${FILENAME}.py`
+            return ''
 
         case "javascript":
-            return `npm init -y;mkdir src;touch src/${FILENAME}.js`
+            // return `npm init -y;mkdir src;touch src/${FILENAME}.js`
+            return ''
 
         case "rust":
             return "cargo new workdir"
