@@ -64,26 +64,11 @@ const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
 }
 
 const prepareRes = (req: IncomingMessage, res: ServerResponse): ServerResponse => {
-    if (req.headers.origin === "http://localhost:3000") return res.setHeader("Access-Control-Allow-Origin", req.headers.origin)
-    return res
+ return res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "")
 }
 const listener: RequestListener = async (req, res) => {
 
-    if (req.method === "OPTIONS") {
-        res.writeHead(204, "", {
-            "Access-Control-Allow-Origin": req.headers.origin,
-            "Vary": "Origin",
-            "Access-Control-Allow-Headers": "Content-Type",
-            "Access-Control-Allow-Methods": ["POST", "DELETE"]
-        })
-        res.end()
-        return;
-    }
 
-    if (req.headers.origin !== "http://localhost:3000" && req.headers["user-agent"] !== process.env.USER_AGENT) {
-        res.writeHead(401, "Bad request").end()
-        return
-    }
 
     const reqData = JSON.parse(await readReq(req));
 
