@@ -36,7 +36,9 @@ export async function createContainer({ language }: { language: allowedLanguages
     if (createContainerResp.dockerStatusCode === 404) {
         const imageName = langToImage[language]
         //error code 404 means there is no image named imageName. Therefore, we need to try pulling the image and creating the container once more
+        console.log(`pulling image ${imageName}`)
         const pullImageResp = await pullImage({ imageName });
+        console.log(pullImageResp)
         if (pullImageResp.error) {
             return { error: pullImageResp.error };
         }

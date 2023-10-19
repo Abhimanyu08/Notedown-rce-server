@@ -13,6 +13,8 @@ export function getIntialCommand(language: allowedLanguages) {
 
         case "rust":
             return "cargo new workdir"
+        case "go":
+            return "go mod init example/main"
     }
 }
 
@@ -24,6 +26,8 @@ export function getRunCodeFileCommand(languauge: allowedLanguages, file?: string
             return `node ${file};`
         case "rust":
             return "cargo run";
+        case "go":
+            return "go run ."
     }
 
 }

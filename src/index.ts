@@ -23,7 +23,9 @@ interface killContainerReq {
 const readReq = (req: IncomingMessage): Promise<string> => {
     return new Promise((resolve, reject) => {
         let data = "";
-        req.on("data", (chunk) => data += chunk.toString());
+        req.on("data", (chunk) => {
+            data += chunk.toString()
+        });
         req.on("error", (err) => reject(err.message));
         req.on("end", () => resolve(data));
     });
@@ -49,29 +51,33 @@ async function setUpContainer(language: allowedLanguages, containerId: string): 
 }
 
 
-const checkLanguageIsAllowed = (language: string): language is allowedLanguages => {
-    return language === "python" || language === "javascript" || language === "rust"
-}
+
 const checkReqIsCreateContainerReq = (reqData: any): reqData is createContainerReq => {
-    return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "language") && checkLanguageIsAllowed(reqData["language"])
+    return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "language")
 }
 const checkReqIsKillContainerReq = (reqData: any): reqData is killContainerReq => {
     return Object.keys(reqData).length === 1 && Object.hasOwn(reqData, "containerId")
 }
 const checkReqIsCreateExecReq = (reqData: any): reqData is createExecReq => {
-    return Object.hasOwn(reqData, "containerId") && Object.hasOwn(reqData, "language") && Object.hasOwn(reqData, "code") &&
-        (checkLanguageIsAllowed(reqData["language"]) || reqData["language"] === "shell")
+    return Object.hasOwn(reqData, "containerId") && Object.hasOwn(reqData, "language") && Object.hasOwn(reqData, "code")
 }
 
 const prepareRes = (req: IncomingMessage, res: ServerResponse): ServerResponse => {
- return res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "")
+    return res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "")
 }
 const listener: RequestListener = async (req, res) => {
 
-
-
+    if (req.headers.origin?.includes("localhost") && req.method === "OPTIONS") {
+        res.writeHead(204, "", {
+            "Access-Control-Allow-Origin": req.headers.origin,
+            "Vary": "Origin",
+            "Access-Control-Allow-Headers": ["Content-Type", "Authorization"],
+            "Access-Control-Allow-Methods": ["POST", "DELETE"]
+        })
+        res.end()
+        return;
+    }
     const reqData = JSON.parse(await readReq(req));
-
 
     if (!checkReqIsCreateContainerReq(reqData) && !checkReqIsCreateExecReq(reqData) && !checkReqIsKillContainerReq(reqData)) {
         prepareRes(req, res).writeHead(400, "Bad request").end()
@@ -88,6 +94,7 @@ const listener: RequestListener = async (req, res) => {
         //the request is to create and set up the container
         const { language } = reqData
 
+        console.log(language)
 
         const createContainerResp = await dockerFunctions.createContainer({ language });
 
