@@ -1,7 +1,7 @@
 import { allowedLanguages } from "../intefaces/allowedLanguages";
 import { FILENAME } from "./constants";
 
-export function getIntialCommand(language: allowedLanguages) {
+export function getInitialCommand(language: allowedLanguages) {
     switch (language) {
         case "python":
             // return `mkdir src;touch src/${FILENAME}.py`
@@ -18,7 +18,7 @@ export function getIntialCommand(language: allowedLanguages) {
     }
 }
 
-export function getRunCodeFileCommand(languauge: allowedLanguages, file?: string) {
+export function getRunCodeFileCommand(languauge: allowedLanguages, file: string) {
     switch (languauge) {
         case "python":
             return `python ${file};`
@@ -27,7 +27,7 @@ export function getRunCodeFileCommand(languauge: allowedLanguages, file?: string
         case "rust":
             return "cargo run";
         case "go":
-            return "go run ."
+            return `go run ${file}`
     }
 
 }

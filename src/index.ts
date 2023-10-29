@@ -2,7 +2,7 @@ import { createServer, IncomingMessage, RequestListener, ServerResponse } from "
 import * as dockerFunctions from "./docker";
 import { allowedLanguages } from "./intefaces/allowedLanguages";
 import { FILENAME, langToExecute, langToExtension } from "./utils/constants";
-import { getIntialCommand, getRunCodeFileCommand } from "./utils/langToCommands"
+import { getInitialCommand, getRunCodeFileCommand } from "./utils/langToCommands"
 
 interface createContainerReq {
     language: allowedLanguages
@@ -17,6 +17,7 @@ interface createExecReq {
 interface killContainerReq {
     containerId: string
 }
+
 
 
 
@@ -40,7 +41,7 @@ async function setUpContainer(language: allowedLanguages, containerId: string): 
         console.log(error)
         return false
     }
-    const INITIAL_COMMAND = getIntialCommand(language);
+    const INITIAL_COMMAND = getInitialCommand(language);
 
     const { error: execError } = await dockerFunctions.createAndStartExec({ containerId, command: INITIAL_COMMAND })
     if (execError) {
@@ -67,6 +68,12 @@ const prepareRes = (req: IncomingMessage, res: ServerResponse): ServerResponse =
 }
 const listener: RequestListener = async (req, res) => {
 
+
+
+
+
+
+
     if (req.headers.origin?.includes("localhost") && req.method === "OPTIONS") {
         res.writeHead(204, "", {
             "Access-Control-Allow-Origin": req.headers.origin,
@@ -77,6 +84,8 @@ const listener: RequestListener = async (req, res) => {
         res.end()
         return;
     }
+
+
     const reqData = JSON.parse(await readReq(req));
 
     if (!checkReqIsCreateContainerReq(reqData) && !checkReqIsCreateExecReq(reqData) && !checkReqIsKillContainerReq(reqData)) {
@@ -162,6 +171,7 @@ function prepareCommand(language: createExecReq["language"], code: string, fileN
     if (language === "rust") {
         command = 'cd workdir;' + command
     }
+
     return command
 }
 
