@@ -1,7 +1,7 @@
 import { createServer, IncomingMessage, RequestListener, ServerResponse } from "http";
 import * as dockerFunctions from "./docker";
 import { allowedLanguages } from "./intefaces/allowedLanguages";
-import { FILENAME, langToExecute, langToExtension } from "./utils/constants";
+import { FILENAME, langToExtension } from "./utils/constants";
 import { getInitialCommand, getRunCodeFileCommand } from "./utils/langToCommands"
 
 interface createContainerReq {
@@ -38,14 +38,12 @@ async function setUpContainer(language: allowedLanguages, containerId: string): 
 
     const { error } = await dockerFunctions.startContainer({ containerId });
     if (error) {
-        console.log(error)
         return false
     }
     const INITIAL_COMMAND = getInitialCommand(language);
 
     const { error: execError } = await dockerFunctions.createAndStartExec({ containerId, command: INITIAL_COMMAND })
     if (execError) {
-        console.log(execError);
         return false
     }
     return true

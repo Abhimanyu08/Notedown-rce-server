@@ -28,5 +28,11 @@ export function getCreateContainerReqBody(language: allowedLanguages): { Image: 
                 "Tty": true,
                 "WorkingDir": "/app",
             }
+        case "typescript":
+            return {
+                "Image": langToImage[language],
+                "Tty": true,
+                "WorkingDir": "/app",
+            }
     }
 }

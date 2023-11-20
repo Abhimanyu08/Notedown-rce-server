@@ -1,22 +1,27 @@
-export const langToImage = {
+import { allowedLanguages } from "src/intefaces/allowedLanguages";
+
+export const langToImage: Record<allowedLanguages, string> = {
     python: "python:latest",
     javascript: "node:latest",
     rust: "rust:latest",
-    go: "golang:latest"
+    go: "golang:latest",
+    typescript: "node:latest",
 } as const
 
-export const langToExtension = {
+export const langToExtension: Record<allowedLanguages, string> = {
     python: ".py",
     javascript: ".js",
     rust: ".rs",
-    go: ".go"
+    go: ".go",
+    typescript: ".ts"
 } as const
 
-export const langToExecute = {
+export const langToExecute: Record<allowedLanguages, string> = {
     python: "python",
     javascript: "node",
     rust: "cargo",
-    go: "go"
+    go: "go",
+    typescript: "ts-node"
 } as const
 
 export const FILENAME = "main";

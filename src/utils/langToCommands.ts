@@ -15,6 +15,8 @@ export function getInitialCommand(language: allowedLanguages) {
             return "cargo new workdir"
         case "go":
             return "go mod init example/main"
+        case "typescript":
+            return "npm i -g typescript; npm i -g ts-node"
     }
 }
 
@@ -28,6 +30,8 @@ export function getRunCodeFileCommand(languauge: allowedLanguages, file: string)
             return "cargo run";
         case "go":
             return `go run ${file}`
+        case "typescript":
+            return `ts-node ${file}`
     }
 
 }
