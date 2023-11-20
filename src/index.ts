@@ -101,7 +101,6 @@ const listener: RequestListener = async (req, res) => {
         //the request is to create and set up the container
         const { language } = reqData
 
-        console.log(language)
 
         const createContainerResp = await dockerFunctions.createContainer({ language });
 

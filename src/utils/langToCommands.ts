@@ -16,7 +16,7 @@ export function getInitialCommand(language: allowedLanguages) {
         case "go":
             return "go mod init example/main"
         case "typescript":
-            return "npm i -g typescript; npm i -g ts-node"
+            return ""
     }
 }
 

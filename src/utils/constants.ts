@@ -5,7 +5,7 @@ export const langToImage: Record<allowedLanguages, string> = {
     javascript: "node:latest",
     rust: "rust:latest",
     go: "golang:latest",
-    typescript: "node:latest",
+    typescript: "ts-image",
 } as const
 
 export const langToExtension: Record<allowedLanguages, string> = {
