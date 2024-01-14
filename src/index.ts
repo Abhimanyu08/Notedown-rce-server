@@ -140,7 +140,7 @@ const listener: RequestListener = async (req, res) => {
 
 function prepareCommand(language: createExecReq["language"], code: string, fileName: string, run: boolean): string {
     code = code.trim();
-    code = code.replaceAll(/'(.*?)'/g, "\"$1\"")
+    code = code.replaceAll(/"/g, '\\"')
 
     if (language === "shell") {
         return code
@@ -156,7 +156,7 @@ function prepareCommand(language: createExecReq["language"], code: string, fileN
 
 
     const file = language !== "rust" ? fileToWriteTo : 'src/' + fileToWriteTo// for eg. file.py
-    const writeCodeToFileCommand = `echo '${code}' > ${file};`
+    const writeCodeToFileCommand = `echo "${code}" > ${file};`
 
     let runCodeFileCommand = ""
 
